@@ -1,4 +1,5 @@
 mod add;
+mod cli;
 mod error;
 mod types;
 
@@ -18,6 +19,31 @@ fn main() -> Result<()> {
 
 fn define_add<'a, 'b>() -> App<'a, 'b> {
     SubCommand::with_name("add")
+        .arg(
+            Arg::with_name("name")
+                .short("n")
+                .long("name")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("description")
+                .short("d")
+                .long("description")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("required")
+                .short("r")
+                .long("required")
+                .conflicts_with("optional")
+                .default_value("false"),
+        )
+        .arg(
+            Arg::with_name("optional")
+                .short("o")
+                .long("optional")
+                .conflicts_with("required"),
+        )
         .arg(
             Arg::with_name("file")
                 .short("f")

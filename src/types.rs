@@ -12,6 +12,7 @@ pub enum Definition {
 #[derive(Default, Deserialize, Serialize)]
 pub struct EnvironmentVariable {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub required: bool,
 }
@@ -19,6 +20,7 @@ pub struct EnvironmentVariable {
 #[derive(Default, Deserialize, Serialize)]
 pub struct Profile {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub definitions: Vec<Definition>,
 }
