@@ -1,14 +1,15 @@
-extern crate clap;
-extern crate dot_dev;
+mod add;
+mod error;
+mod types;
 
 use clap::{App, Arg, SubCommand};
-use dot_dev::Result;
+use error::Result;
 
 fn main() -> Result<()> {
     let app = App::new("dot-dev").subcommand(define_add());
     let matches = app.get_matches();
     if let Some(matches) = matches.subcommand_matches("add") {
-        dot_dev::add(&matches)
+        add::add(&matches)
     } else {
         println!("{}", matches.usage());
         std::process::exit(1);
@@ -23,7 +24,8 @@ fn define_add<'a, 'b>() -> App<'a, 'b> {
                 .long("file")
                 .required(true)
                 .takes_value(true),
-        ).arg(
+        )
+        .arg(
             Arg::with_name("profile")
                 .short("p")
                 .long("profile")

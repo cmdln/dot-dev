@@ -1,8 +1,7 @@
-use failure::ResultExt;
-
-use std::{fs::File, path::Path};
-
 use crate::error::*;
+use failure::ResultExt;
+use serde_derive::{Deserialize, Serialize};
+use std::{fs::File, path::Path};
 
 #[derive(Deserialize, Serialize)]
 pub enum Definition {
@@ -39,7 +38,8 @@ impl Config {
                     "Failed to parse config file, {}",
                     config_file.as_ref().display()
                 )
-            }).map_err(|error| error.into())
+            })
+            .map_err(|error| error.into())
     }
 
     pub fn save<P: AsRef<Path>>(&self, config_file: P) -> Result<()> {
@@ -49,15 +49,8 @@ impl Config {
                     "Failed to stringify config file, {}",
                     config_file.as_ref().display()
                 )
-            }).map_err(|error| error.into())
-    }
-
-    pub fn profile<'a>(&'a self, name: &Option<String>) -> Option<&'a Profile> {
-        if let Some(name) = name {
-            self.profiles.iter().find(|profile| profile.name == *name)
-        } else {
-            Some(&self.default_profile)
-        }
+            })
+            .map_err(|error| error.into())
     }
 
     pub fn profile_mut<'a>(&'a mut self, name: &Option<String>) -> Option<&'a mut Profile> {
