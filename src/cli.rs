@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crossterm::TerminalInput;
+use crossterm::{ClearType, InputEvent, KeyEvent, RawScreen, TerminalInput};
 use failure::format_err;
 use std::io::{self, prelude::*, Stdout};
 
@@ -26,6 +26,38 @@ pub(crate) fn input_required<S: AsRef<str>>(prompt: S) -> Result<String> {
                 .unwrap_or_default()
         })
         .ok_or_else(|| format_err!("Interrupted!"))?
+}
+
+pub(crate) fn prompt<S: AsRef<str>>(prompt: S) -> Result<bool> {
+    let _raw = RawScreen::into_raw_mode()?;
+    let terminal = crossterm::terminal();
+    let cursor = crossterm::cursor();
+    cursor.save_position()?;
+    let input = crossterm::input();
+    let mut reader = input.read_sync();
+    let mut value = false;
+    loop {
+        terminal.clear(ClearType::CurrentLine)?;
+        cursor.reset_position()?;
+        print!(
+            "{}{}",
+            prompt.as_ref(),
+            if value { "true" } else { "false" }
+        );
+        io::stdout().flush()?;
+        let event = reader.next();
+        match event {
+            Some(InputEvent::Keyboard(KeyEvent::Char('y'))) => value = true,
+            Some(InputEvent::Keyboard(KeyEvent::Char('n'))) => value = false,
+            Some(InputEvent::Keyboard(KeyEvent::Char('\n'))) => break,
+            Some(InputEvent::Keyboard(KeyEvent::Ctrl('c'))) => {
+                return Err(io::Error::new(io::ErrorKind::Interrupted, "keyboard interrupt").into())
+            }
+            _ => {}
+        }
+    }
+    RawScreen::disable_raw_mode()?;
+    Ok(value)
 }
 
 struct Interaction {

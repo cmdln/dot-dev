@@ -16,27 +16,26 @@ pub fn add(matches: &ArgMatches<'_>) -> Result<()> {
         .or_else(|_| cli::input_optional("Description: "))?;
     let required = value_t!(matches, "required", bool).unwrap_or_default();
 
-    let mut config = Config::load(&config_file).unwrap_or_default();
+    let config = Config::load(&config_file).unwrap_or_default();
 
-    // limit mutable borrow
-    {
-        // TODO add resolution for user, i.e. how to create a new profile
-        let profile = config.profile_mut(&profile).ok_or_else(|| {
-            format_err!(
-                "Could not find {}",
-                profile
-                    .map(|profile| format!("a profile named {}", profile))
-                    .unwrap_or_else(|| String::from("default profile"))
-            )
-        })?;
+    // TODO add resolution for user, i.e. how to create a new profile
+    let profile = config.profile(&profile).ok_or_else(|| {
+        format_err!(
+            "Could not find {}",
+            profile
+                .map(|profile| format!("a profile named {}", profile))
+                .unwrap_or_else(|| String::from("default profile"))
+        )
+    })?;
 
-        let var = EnvironmentVariable {
-            name,
-            description,
-            required,
-        };
-        profile.add(var)?;
-    }
+    let var = EnvironmentVariable {
+        name,
+        description,
+        required,
+    };
 
-    Config::save(&config, &config_file)
+    let profile = profile.to_owned().add(var)?;
+
+    let config = config.set_profile(profile);
+    config.save(&config_file)
 }

@@ -5,12 +5,28 @@ mod types;
 
 use clap::{App, Arg, SubCommand};
 use error::Result;
+use std::{
+    io::{Error, ErrorKind},
+    process,
+};
 
 fn main() -> Result<()> {
     let app = App::new("dot-dev").subcommand(define_add());
     let matches = app.get_matches();
     if let Some(matches) = matches.subcommand_matches("add") {
-        add::add(&matches)
+        match add::add(&matches) {
+            Ok(_) => Ok(()),
+            Err(error) => match error.downcast::<Error>() {
+                Ok(io_error) => match io_error.kind() {
+                    ErrorKind::Interrupted => {
+                        println!("^C");
+                        process::exit(1);
+                    }
+                    _ => Err(io_error.into()),
+                },
+                Err(error) => Err(error),
+            },
+        }
     } else {
         println!("{}", matches.usage());
         std::process::exit(1);
