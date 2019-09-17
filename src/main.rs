@@ -3,7 +3,7 @@ mod cli;
 mod error;
 mod types;
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, ArgMatches, SubCommand};
 use error::Result;
 use std::{
     io::{Error, ErrorKind},
@@ -11,25 +11,46 @@ use std::{
 };
 
 fn main() -> Result<()> {
-    let app = App::new("dot-dev").subcommand(define_add());
+    let app = App::new("dot-dev")
+        .arg(Arg::with_name("quiet").short("q"))
+        .arg(Arg::with_name("verbosity").short("v"))
+        .subcommand(define_add());
     let matches = app.get_matches();
+    stderrlog::new()
+        .module(module_path!())
+        .quiet(matches.is_present("quiet"))
+        .verbosity(
+            matches.occurrences_of("verbosity") as usize
+                + if matches.is_present("quiet") { 0 } else { 2 },
+        )
+        .init()?;
     if let Some(matches) = matches.subcommand_matches("add") {
-        match add::add(&matches) {
-            Ok(_) => Ok(()),
-            Err(error) => match error.downcast::<Error>() {
-                Ok(io_error) => match io_error.kind() {
-                    ErrorKind::Interrupted => {
-                        println!("^C");
-                        process::exit(1);
-                    }
-                    _ => Err(io_error.into()),
-                },
-                Err(error) => Err(error),
-            },
-        }
+        handle_interrupt(add::add, &matches)
     } else {
         println!("{}", matches.usage());
         std::process::exit(1);
+    }
+}
+
+// Some cli functions halt the process as expected, some require return a custom IO error of kind
+// Interrupted that then need to be downcast and matched, otherwise the main function prints the
+// debug display of the error which isn't a great user experience
+fn handle_interrupt(
+    cmd: impl Fn(&ArgMatches<'_>) -> Result<()>,
+    matches: &ArgMatches<'_>,
+) -> Result<()> {
+    match cmd(&matches) {
+        Ok(_) => Ok(()),
+        Err(error) => match error.downcast::<Error>() {
+            Ok(io_error) => match io_error.kind() {
+                ErrorKind::Interrupted => {
+                    println!("^C");
+                    process::exit(1);
+                }
+                _ => Err(io_error.into()),
+            },
+            Err(error) => Err(error),
+        },
     }
 }
 

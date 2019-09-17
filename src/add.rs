@@ -5,10 +5,11 @@ use crate::{
 };
 use clap::{value_t, ArgMatches};
 use failure::format_err;
+use log::debug;
 
 pub fn add(matches: &ArgMatches<'_>) -> Result<()> {
     let config_file = value_t!(matches, "file", String)?;
-    let profile = value_t!(matches, "profile", String).ok();
+    let profile_arg = value_t!(matches, "profile", String).ok();
     let name =
         value_t!(matches, "name", String).or_else(|_| cli::input_required("Variable name: "))?;
     let description = value_t!(matches, "description", String)
@@ -19,10 +20,11 @@ pub fn add(matches: &ArgMatches<'_>) -> Result<()> {
     let config = Config::load(&config_file).unwrap_or_default();
 
     // TODO add resolution for user, i.e. how to create a new profile
-    let profile = config.profile(&profile).ok_or_else(|| {
+    let profile = config.profile(&profile_arg).ok_or_else(|| {
         format_err!(
             "Could not find {}",
-            profile
+            profile_arg
+                .as_ref()
                 .map(|profile| format!("a profile named {}", profile))
                 .unwrap_or_else(|| String::from("default profile"))
         )
@@ -34,8 +36,15 @@ pub fn add(matches: &ArgMatches<'_>) -> Result<()> {
         required,
     };
 
+    debug!("Original profile {:?}", profile);
     let profile = profile.to_owned().add(var)?;
+    debug!("Profile after adding {:?}", profile);
 
-    let config = config.set_profile(profile);
+    let config = if profile_arg.is_some() {
+        config.upsert_profile(profile)
+    } else {
+        config.update_default_profile(profile)
+    };
+    debug!("Saving {}", config_file);
     config.save(&config_file)
 }

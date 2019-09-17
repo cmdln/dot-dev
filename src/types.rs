@@ -1,9 +1,10 @@
 use crate::{cli, error::*};
 use failure::ResultExt;
+use log::debug;
 use serde_derive::{Deserialize, Serialize};
 use std::{fs::File, path::Path};
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum Definition {
     Variable(EnvironmentVariable),
     Group {
@@ -12,7 +13,7 @@ pub enum Definition {
     },
 }
 
-#[derive(Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct EnvironmentVariable {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -20,7 +21,7 @@ pub struct EnvironmentVariable {
     pub required: bool,
 }
 
-#[derive(Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct Profile {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,13 +67,20 @@ impl Config {
         }
     }
 
-    pub fn set_profile(self, to_set: Profile) -> Config {
-        let profiles = self
+    pub fn update_default_profile(self, default_profile: Profile) -> Config {
+        Config {
+            default_profile,
+            ..self
+        }
+    }
+    pub fn upsert_profile(self, to_upsert: Profile) -> Config {
+        let mut profiles: Vec<Profile> = self
             .profiles
             .iter()
-            .filter(|profile| profile.name != to_set.name)
+            .filter(|profile| profile.name != to_upsert.name)
             .map(Clone::clone)
             .collect();
+        profiles.push(to_upsert);
         Config { profiles, ..self }
     }
 }
@@ -86,16 +94,29 @@ impl Profile {
                 false
             }
         });
+        debug!("{} is already defined? {}", to_add.name, already_defined);
         if already_defined {
             if cli::prompt(format!("{} is already defined, replace it? ", to_add.name))? {
-                // TODO prompt to replace if already exists?
-                let mut definitions = self.definitions.clone();
+                debug!("Replacing existing {}", to_add.name);
+                let mut definitions: Vec<Definition> = self
+                    .definitions
+                    .iter()
+                    .filter(|var| {
+                        if let Definition::Variable(var) = var {
+                            var.name != to_add.name
+                        } else {
+                            true
+                        }
+                    })
+                    .map(Clone::clone)
+                    .collect();
                 definitions.push(Definition::Variable(to_add));
                 Ok(Profile {
                     definitions,
                     ..self
                 })
             } else {
+                debug!("Using existing {}", to_add.name);
                 Ok(self)
             }
         } else {

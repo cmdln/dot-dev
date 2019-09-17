@@ -1,31 +1,38 @@
 use crate::error::Result;
-use crossterm::{ClearType, InputEvent, KeyEvent, RawScreen, TerminalInput};
+use crossterm::{ClearType, InputEvent, KeyEvent, RawScreen};
 use failure::format_err;
-use std::io::{self, prelude::*, Stdout};
+use std::io::{self, prelude::*};
 
 pub(crate) fn input_optional<S: AsRef<str>>(prompt: S) -> Result<Option<String>> {
-    prompt_input(prompt.as_ref(), &mut io::stdout(), &crossterm::input()).and_then(|value| {
-        if value.is_empty() {
-            Ok(None)
-        } else {
-            value
-                .parse()
-                .map_err(failure::Error::from)
-                .map(Option::Some)
-        }
-    })
+    prompt_for_text(prompt)
+        .map(|result| result.map(|value| if value.is_empty() { None } else { Some(value) }))
+        .next()
+        .ok_or_else(|| format_err!("Interrupted"))?
 }
 
 pub(crate) fn input_required<S: AsRef<str>>(prompt: S) -> Result<String> {
-    let mut interaction = Interaction::new(prompt);
-    interaction
-        .find(|result| {
-            result
+    prompt_for_text(prompt)
+        .skip_while(|value| {
+            value
                 .as_ref()
-                .map(|value| !value.is_empty())
+                .map(|value| {
+                    if value.is_empty() {
+                        println!("A response is required!");
+                    }
+                    value.is_empty()
+                })
                 .unwrap_or_default()
         })
-        .ok_or_else(|| format_err!("Interrupted!"))?
+        .next()
+        .ok_or_else(|| format_err!("Interrupted"))?
+}
+
+fn prompt_for_text<S: AsRef<str>>(prompt: S) -> impl Iterator<Item = Result<String>> {
+    std::iter::repeat_with(|| (io::stdout(), crossterm::input())).map(move |(mut stdout, input)| {
+        print!("{}", prompt.as_ref());
+        stdout.flush()?;
+        input.read_line().map_err(failure::Error::from)
+    })
 }
 
 pub(crate) fn prompt<S: AsRef<str>>(prompt: S) -> Result<bool> {
@@ -58,36 +65,4 @@ pub(crate) fn prompt<S: AsRef<str>>(prompt: S) -> Result<bool> {
     }
     RawScreen::disable_raw_mode()?;
     Ok(value)
-}
-
-struct Interaction {
-    prompt: String,
-    stdout: Stdout,
-    input: TerminalInput,
-}
-
-impl Interaction {
-    fn new<S: AsRef<str>>(prompt: S) -> Self {
-        Self {
-            prompt: prompt.as_ref().to_owned(),
-            stdout: io::stdout(),
-            input: crossterm::input(),
-        }
-    }
-}
-
-impl Iterator for Interaction {
-    type Item = Result<String>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        Some(prompt_input(&self.prompt, &mut self.stdout, &self.input))
-    }
-}
-
-fn prompt_input(prompt: &str, stdout: &mut Stdout, input: &TerminalInput) -> Result<String> {
-    print!("{}", prompt);
-    stdout
-        .flush()
-        .map_err(failure::Error::from)
-        .and_then(|_| input.read_line().map_err(failure::Error::from))
 }
