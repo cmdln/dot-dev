@@ -11,10 +11,10 @@ pub fn add(matches: &ArgMatches<'_>) -> Result<()> {
     let config_file = value_t!(matches, "file", String)?;
     let profile_arg = value_t!(matches, "profile", String).ok();
     let name =
-        value_t!(matches, "name", String).or_else(|_| cli::input_required("Variable name: "))?;
+        value_t!(matches, "name", String).or_else(|_| cli::text_required("Variable name: "))?;
     let description = value_t!(matches, "description", String)
         .map(|value| if value.is_empty() { None } else { Some(value) })
-        .or_else(|_| cli::input_optional("Description: "))?;
+        .or_else(|_| cli::text("Description: "))?;
     let required = value_t!(matches, "required", bool).unwrap_or_default();
 
     let config = Config::load(&config_file).unwrap_or_default();

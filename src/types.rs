@@ -96,7 +96,7 @@ impl Profile {
         });
         debug!("{} is already defined? {}", to_add.name, already_defined);
         if already_defined {
-            if cli::prompt(format!("{} is already defined, replace it? ", to_add.name))? {
+            if cli::answer_yes_no(format!("{} is already defined, replace it? ", to_add.name))? {
                 debug!("Replacing existing {}", to_add.name);
                 let mut definitions: Vec<Definition> = self
                     .definitions
