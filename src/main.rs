@@ -1,9 +1,10 @@
 mod add;
 mod cli;
 mod error;
+mod profile;
 mod types;
 
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{App, Arg, ArgMatches};
 use error::Result;
 use std::{
     io::{Error, ErrorKind},
@@ -14,7 +15,8 @@ fn main() -> Result<()> {
     let app = App::new("dot-dev")
         .arg(Arg::with_name("quiet").short("q"))
         .arg(Arg::with_name("verbosity").short("v"))
-        .subcommand(define_add());
+        .subcommand(add::subcommand())
+        .subcommand(profile::subcommand());
     let matches = app.get_matches();
     stderrlog::new()
         .module(module_path!())
@@ -24,17 +26,23 @@ fn main() -> Result<()> {
                 + if matches.is_present("quiet") { 0 } else { 2 },
         )
         .init()?;
-    if let Some(matches) = matches.subcommand_matches("add") {
-        handle_interrupt(add::add, &matches)
-    } else {
-        println!("{}", matches.usage());
-        std::process::exit(1);
+    match &matches.subcommand {
+        Some(subcommand) if subcommand.name == "add" => {
+            handle_interrupt(add::exec, &subcommand.matches)
+        }
+        Some(subcommand) if subcommand.name == "profile" => {
+            handle_interrupt(profile::exec, &subcommand.matches)
+        }
+        _ => {
+            println!("{}", matches.usage());
+            std::process::exit(1);
+        }
     }
 }
 
-// Some cli functions halt the process as expected, some require return a custom IO error of kind
-// Interrupted that then need to be downcast and matched, otherwise the main function prints the
-// debug display of the error which isn't a great user experience
+/// Some cli functions halt the process as expected, some require returning a custom IO error of
+/// kind Interrupted that thens need to be downcast and matched, otherwise the main function prints
+/// the debug display of the error which isn't a great user experience
 fn handle_interrupt(
     cmd: impl Fn(&ArgMatches<'_>) -> Result<()>,
     matches: &ArgMatches<'_>,
@@ -54,50 +62,12 @@ fn handle_interrupt(
     }
 }
 
-fn define_add<'a, 'b>() -> App<'a, 'b> {
-    SubCommand::with_name("add")
-        .arg(
-            Arg::with_name("name")
-                .short("n")
-                .long("name")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("description")
-                .short("d")
-                .long("description")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("required")
-                .short("r")
-                .long("required")
-                .conflicts_with("optional")
-                .default_value("false"),
-        )
-        .arg(
-            Arg::with_name("optional")
-                .short("o")
-                .long("optional")
-                .conflicts_with("required"),
-        )
-        .arg(
-            Arg::with_name("default")
-                .short("D")
-                .long("default-value")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("file")
-                .short("f")
-                .long("file")
-                .required(true)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("profile")
-                .short("p")
-                .long("profile")
-                .takes_value(true),
-        )
+/// Define a file argument for any subcommands.
+fn define_file_arg<'a, 'b>() -> Arg<'a, 'b> {
+    Arg::with_name("file")
+        .help("JSON file to save to and/or load from.")
+        .short("f")
+        .long("file")
+        .required(true)
+        .takes_value(true)
 }
