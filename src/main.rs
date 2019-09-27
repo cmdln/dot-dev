@@ -82,6 +82,12 @@ fn define_add<'a, 'b>() -> App<'a, 'b> {
                 .conflicts_with("required"),
         )
         .arg(
+            Arg::with_name("default")
+                .short("D")
+                .long("default-value")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("file")
                 .short("f")
                 .long("file")

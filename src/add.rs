@@ -15,6 +15,9 @@ pub fn add(matches: &ArgMatches<'_>) -> Result<()> {
     let description = value_t!(matches, "description", String)
         .map(|value| if value.is_empty() { None } else { Some(value) })
         .or_else(|_| cli::text("Description: "))?;
+    let default_value = value_t!(matches, "default", String)
+        .map(|value| if value.is_empty() { None } else { Some(value) })
+        .or_else(|_| cli::text("Default value: "))?;
     let required = value_t!(matches, "required", bool).unwrap_or_default();
 
     let config = Config::load(&config_file).unwrap_or_default();
@@ -34,6 +37,7 @@ pub fn add(matches: &ArgMatches<'_>) -> Result<()> {
         name,
         description,
         required,
+        default_value,
     };
 
     debug!("Original profile {:?}", profile);

@@ -19,6 +19,7 @@ pub struct EnvironmentVariable {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub required: bool,
+    pub default_value: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
