@@ -24,12 +24,18 @@ pub(crate) fn exec(matches: &ArgMatches<'_>) -> Result<()> {
 
     let profile = config.profile(&profile_arg).ok_or_else(|| {
         format_err!(
-            "Could not find profile, \"{0}\". You may need to add it with \"dot-dev profile add {0} -f {1}\".",
+            "Could not find {}.{}",
             profile_arg
                 .as_ref()
-                .map(|profile| format!("a profile named {}", profile))
+                .map(|profile| format!("a profile named \"{}\"", profile))
                 .unwrap_or_else(|| String::from("default profile")),
-                config_file
+            profile_arg
+                .as_ref()
+                .map(|profile| format!(
+                    " You may need to add it with \"dot-dev profile add {} -f {}\".",
+                    profile, config_file
+                ))
+                .unwrap_or_default(),
         )
     })?;
 
