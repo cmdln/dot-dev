@@ -2,7 +2,7 @@ use crate::{cli, error::*};
 use failure::ResultExt;
 use log::debug;
 use serde_derive::{Deserialize, Serialize};
-use std::{fs::File, path::Path};
+use std::{fs::File, io::prelude::*, path::Path};
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum Definition {
@@ -30,8 +30,7 @@ pub struct Profile {
     pub definitions: Vec<Definition>,
 }
 
-// TODO make private and wrap in type that has lazy constructed views
-#[derive(Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct Config {
     pub default_profile: Profile,
     pub profiles: Vec<Profile>,
@@ -39,7 +38,7 @@ pub struct Config {
 
 impl Config {
     pub fn load<P: AsRef<Path>>(config_file: P) -> Result<Self> {
-        serde_json::from_reader(File::open(&config_file)?)
+        Config::load_from(File::open(&config_file)?)
             .with_context(|_| {
                 format!(
                     "Failed to parse config file, {}",
@@ -49,8 +48,12 @@ impl Config {
             .map_err(|error| error.into())
     }
 
+    fn load_from<R: Read>(reader: R) -> Result<Self> {
+        serde_json::from_reader(reader).map_err(|error| error.into())
+    }
+
     pub fn save<P: AsRef<Path>>(self, config_file: P) -> Result<()> {
-        serde_json::to_writer_pretty(File::create(&config_file)?, &self)
+        self.save_to(File::create(&config_file)?)
             .with_context(|_| {
                 format!(
                     "Failed to stringify config file, {}",
@@ -58,6 +61,10 @@ impl Config {
                 )
             })
             .map_err(|error| error.into())
+    }
+
+    fn save_to<W: Write>(self, writer: W) -> Result<()> {
+        serde_json::to_writer_pretty(writer, &self).map_err(|error| error.into())
     }
 
     pub fn profile<'a>(&'a self, name: &Option<String>) -> Option<&'a Profile> {
@@ -131,4 +138,42 @@ impl Profile {
     }
 }
 
-// TODO tests
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::io::Cursor;
+
+    const DEFAULT_JSON: &str = r#"{
+  "default_profile": {
+    "name": "",
+    "definitions": []
+  },
+  "profiles": []
+}"#;
+
+    #[test]
+    fn test_invalid_config() {
+        let config = Config::load_from(Cursor::new(String::from("{}").as_bytes()));
+        assert!(config.is_err(), "Should not have loaded invalid config!");
+    }
+
+    #[test]
+    fn test_valid_config() {
+        let config = Config::load_from(Cursor::new(DEFAULT_JSON.as_bytes()));
+        assert!(
+            config.is_ok(),
+            "Should have loaded invalid config! {:?}",
+            config
+        );
+    }
+
+    #[test]
+    fn test_save() {
+        let config = Config::default();
+        let mut buffer = Vec::new();
+        let cursor = Cursor::new(&mut buffer);
+        let result = config.save_to(cursor);
+        assert!(result.is_ok(), "Could not save. {:?}", result);
+        assert_eq!(String::from_utf8_lossy(&buffer), DEFAULT_JSON);
+    }
+}
