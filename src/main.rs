@@ -66,8 +66,6 @@ fn handle_interrupt(
 fn define_file_arg<'a, 'b>() -> Arg<'a, 'b> {
     Arg::with_name("file")
         .help("JSON file to save to and/or load from.")
-        .short("f")
-        .long("file")
         .required(true)
         .takes_value(true)
 }

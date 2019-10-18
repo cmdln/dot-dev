@@ -29,6 +29,7 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
         .about("Commands for working with profiles. A profile is a named collection of environment variables.")
         .subcommand(
             SubCommand::with_name("add")
+                .about("Add a named profile.")
                 .arg(
                     Arg::with_name("name")
                         .help("Name of the profile to add.")
@@ -38,7 +39,11 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
                 )
                 .arg(crate::define_file_arg())
         )
-        .subcommand(SubCommand::with_name("list").arg(crate::define_file_arg()))
+        .subcommand(
+            SubCommand::with_name("list")
+                .about("Show the available profiles, including the default one.")
+                .arg(crate::define_file_arg())
+        )
 }
 
 fn add(matches: &ArgMatches<'_>) -> Result<()> {

@@ -18,7 +18,7 @@ pub(crate) fn exec(matches: &ArgMatches<'_>) -> Result<()> {
     let default_value = value_t!(matches, "default", String)
         .map(|value| if value.is_empty() { None } else { Some(value) })
         .or_else(|_| cli::text("Default value: "))?;
-    let required = value_t!(matches, "required", bool).unwrap_or_default();
+    let required = matches.is_present("required");
 
     let config = Config::load(&config_file).unwrap_or_default();
 
@@ -80,8 +80,7 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
             Arg::with_name("required")
                 .short("r")
                 .long("required")
-                .conflicts_with("optional")
-                .default_value("false"),
+                .conflicts_with("optional"),
         )
         .arg(
             Arg::with_name("optional")
@@ -100,6 +99,9 @@ pub(crate) fn subcommand<'a, 'b>() -> App<'a, 'b> {
         )
         .arg(
             Arg::with_name("profile")
+                .help(
+                    "Profile to add this variable definition to, if not specified, add to the default profile."
+                )
                 .short("p")
                 .long("profile")
                 .takes_value(true),
